@@ -4,11 +4,12 @@ const evaluate = @import("evaulate.zig");
 const LineState = evaluate.LineState;
 
 pub fn convert_markdown(reader: *std.io.Reader, writer: *std.io.Writer) !void {
-    var last_s = LineState.none;
+    var last_s = LineState{ .none = undefined };
     while (reader.takeDelimiterExclusive('\n')) |line| {
         const line_s, const truncated = evaluate.evaluate_line(line);
         print_prefix(last_s, line_s, writer) catch |err| {
             if (err == error.EndLine) {
+                last_s = line_s;
                 continue;
             } else return err;
         };
@@ -27,10 +28,16 @@ pub fn convert_markdown(reader: *std.io.Reader, writer: *std.io.Writer) !void {
 fn print_prefix(o: LineState, c: LineState, writer: *std.io.Writer) !void {
     // terminate any previous list
     if (o == .ul and c != .ul) {
-        try writer.print("</ul>\n", .{});
+        try print_close_lists(o.ul, 0, "ul", writer);
     }
     if (o == .ol and c != .ol) {
-        try writer.print("</ol>\n", .{});
+        try print_close_lists(o.ol, 0, "ol", writer);
+    }
+    if (o == .ul and c == .ul and o.ul > c.ul) {
+        try print_close_lists(o.ul, c.ul, "ul", writer);
+    }
+    if (o == .ol and c == .ol and o.ol > c.ol) {
+        try print_close_lists(o.ol, c.ol, "ol", writer);
     }
     switch (c) {
         .h1 => try writer.print("<h1>", .{}),
@@ -41,19 +48,27 @@ fn print_prefix(o: LineState, c: LineState, writer: *std.io.Writer) !void {
             try writer.print("<hr/>\n", .{});
             return error.EndLine;
         },
-        .ul => {
-            if (o != .ul) {
+        .ul => |level| {
+            if (o != .ul or o.ul < level) {
                 try writer.print("<ul>\n", .{});
             }
             try writer.print("<li>", .{});
         },
-        .ol => {
-            if (o != .ol) {
+        .ol => |level| {
+            if (o != .ol or o.ol < level) {
                 try writer.print("<ol>\n", .{});
             }
             try writer.print("<li>", .{});
         },
         else => return error.EndLine,
+    }
+}
+
+fn print_close_lists(o: i32, c: i32, tag: []const u8, writer: *std.io.Writer) !void {
+    var i = o;
+    while (i > c and i > 0) {
+        try writer.print("</{s}>\n", .{tag});
+        i -= 1;
     }
 }
 
