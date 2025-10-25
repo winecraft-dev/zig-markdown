@@ -2,22 +2,13 @@ const std = @import("std");
 const markdown = @import("root.zig");
 
 pub const LineType = enum { none, h1, h2, h3, hr, block_quote, p, ul, ol };
-pub const LineState = union(LineType) {
-    none,
-    h1,
-    h2,
-    h3,
-    hr,
-    block_quote,
-    p,
-    ul: i32,
-    ol: i32,
-};
+pub const LineState = union(LineType) { none, h1, h2, h3, hr, block_quote, p, ul: i32, ol: i32 };
 pub const StyleState = struct {
-    bold: bool = false,
-    italic: bool = false,
     code: bool = false,
+    italic: bool = false,
+    bold: bool = false,
 };
+pub const LinkState = enum { image_text, link_text, image_url, link_url };
 const ListResult = struct {
     level: i32,
     trimmed: []u8,

@@ -1,10 +1,10 @@
 # Project Title
 
-Simple overview of use/purpose.
+Simple **overview** of *use/purpose.*
 
 ## Description
 
-An in-depth paragraph about your project and overview of use.
+An in-depth paragraph about **your project* and overview*** of use.
 
 ## Getting Started
 
@@ -20,7 +20,7 @@ An in-depth paragraph about your project and overview of use.
 
 ### Executing program
 
-- How to run the program
+- How to *run* the program
 - Step-by-step bullets
 ```
 code blocks for commands

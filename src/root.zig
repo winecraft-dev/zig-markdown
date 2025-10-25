@@ -2,6 +2,8 @@ const std = @import("std");
 const evaluate = @import("evaulate.zig");
 
 const LineState = evaluate.LineState;
+const StyleState = evaluate.StyleState;
+const LinkState = evaluate.LinkState;
 
 pub fn convert_markdown(reader: *std.io.Reader, writer: *std.io.Writer) !void {
     var last_s = LineState{ .none = undefined };
@@ -15,7 +17,7 @@ pub fn convert_markdown(reader: *std.io.Reader, writer: *std.io.Writer) !void {
         };
         last_s = line_s;
 
-        try writer.print("{s}", .{truncated});
+        try print_line(truncated, writer);
         try print_suffix(line_s, writer);
     } else |err| {
         if (err != error.EndOfStream) {
@@ -23,6 +25,103 @@ pub fn convert_markdown(reader: *std.io.Reader, writer: *std.io.Writer) !void {
         }
     }
     try print_terminate_list(last_s, writer);
+}
+
+fn print_line(line: []u8, writer: *std.io.Writer) !void {
+    var buf: [1024]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buf);
+    const allocator = fba.allocator();
+
+    var url = try std.ArrayList(u8).initCapacity(allocator, 32);
+    var title = try std.ArrayList(u8).initCapacity(allocator, 32);
+    defer url.deinit(allocator);
+    defer title.deinit(allocator);
+
+    var style = StyleState{};
+    var link: ?LinkState = null;
+    var exclamation = false;
+    var asterisks: i32 = 0;
+    for (line) |c| {
+        if (c == '*') {
+            asterisks += 1;
+        }
+        // else if (c == '`') {
+        //     if (!style.code) {
+        //         try writer.print("<code>", .{});
+        //     } else {
+        //         try writer.print("</code>", .{});
+        //     }
+        //     style.code = !style.code;
+        // }
+        else if (c == '!') {
+            exclamation = true;
+        } else if (c == '[' and exclamation) {
+            link = .image_text;
+            exclamation = false;
+        } else if (c == '[') {
+            link = .link_text;
+        } else if (c == ']' and (link == .image_text or link == .link_text)) {
+            //
+        } else if (c == '(' and link == .image_text) {
+            link = .image_url;
+        } else if (c == '(' and link == .link_text) {
+            link = .link_url;
+        } else if (c == ')' and link == .image_url) {
+            try writer.print("<img src=\"{s}\" alt=\"{s}\">", .{ url.items, title.items });
+            title.clearAndFree(allocator);
+            url.clearAndFree(allocator);
+            link = null;
+        } else if (c == ')' and link == .link_url) {
+            try writer.print("<a href=\"{s}\">{s}</a>", .{ url.items, title.items });
+            title.clearAndFree(allocator);
+            url.clearAndFree(allocator);
+            link = null;
+        } else if (link == .image_text or link == .link_text) {
+            try title.append(allocator, c);
+        } else if (link == .image_url or link == .link_url) {
+            try url.append(allocator, c);
+        } else if (asterisks == 2) {
+            if (!style.bold) {
+                try writer.print("<b>{c}", .{c});
+                style.bold = true;
+            } else {
+                try writer.print("</b>{c}", .{c});
+                style.bold = false;
+            }
+            asterisks = 0;
+        } else if (asterisks == 1) {
+            if (!style.italic) {
+                try writer.print("<i>{c}", .{c});
+                style.italic = true;
+            } else {
+                try writer.print("</i>{c}", .{c});
+                style.italic = false;
+            }
+            asterisks = 0;
+        } else if (asterisks >= 3) {
+            if (!(style.italic and style.bold)) {
+                try writer.print("<b><i>{c}", .{c});
+                style.italic = true;
+                style.bold = true;
+            } else {
+                try writer.print("</i></b>{c}", .{c});
+                style.italic = false;
+                style.bold = false;
+            }
+            asterisks = 0;
+        } else {
+            try writer.printAsciiChar(c, .{});
+        }
+    }
+    if (style.bold) {
+        try writer.print("</b>", .{});
+    }
+    if (style.italic) {
+        try writer.print("</i>", .{});
+    }
+    if (style.code) {
+        try writer.print("</code", .{});
+    }
 }
 
 fn print_prefix(o: LineState, c: LineState, writer: *std.io.Writer) !void {
