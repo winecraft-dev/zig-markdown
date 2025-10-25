@@ -41,7 +41,7 @@ ex. Dominique Pizzie
 ex. [@DomPizzie](https://twitter.com/dompizzie)
 
 ## Trying out an OL
-Here's that list we were talking about
+Here's that list we were*** talking about***
 
 1. Test
     1. Yellow
@@ -67,7 +67,7 @@ Here's that list we were talking about
 
 ## License
 
-This project is licensed under the [NAME HERE] License - see the LICENSE.md file for details
+This project is licensed under the [NAME HERE]() License - see the LICENSE.md file for details
 
 ## Acknowledgments
 
